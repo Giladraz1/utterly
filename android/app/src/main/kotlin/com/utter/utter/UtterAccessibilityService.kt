@@ -80,7 +80,7 @@ class UtterAccessibilityService : AccessibilityService() {
         if (bubbleView != null) return
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
-        val bubbleSizePx = (56 * resources.displayMetrics.density).toInt()
+        val bubbleSizePx = (76 * resources.displayMetrics.density).toInt()
         val button = ImageButton(this)
         button.background = null
         button.scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
