@@ -164,7 +164,8 @@ class UtterAccessibilityService : AccessibilityService() {
     }
 
     private fun setBubbleTint(button: ImageButton, listening: Boolean) {
-        button.setImageResource(if (listening) R.drawable.ic_mic_bubble_listening else R.drawable.ic_mic_bubble)
+        button.setImageResource(R.drawable.ic_mic_bubble)
+        button.background = if (listening) ContextCompat.getDrawable(this, R.drawable.listening_ring) else null
     }
 
     private fun toggleListening(button: ImageButton) {
@@ -175,7 +176,7 @@ class UtterAccessibilityService : AccessibilityService() {
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.RECORD_AUDIO)
             != PackageManager.PERMISSION_GRANTED
         ) {
-            Toast.makeText(this, "Grant microphone permission in the Utter app first", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Grant microphone permission in the Utterly app first", Toast.LENGTH_LONG).show()
             return
         }
         if (!SpeechRecognizer.isRecognitionAvailable(this)) {
