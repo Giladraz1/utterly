@@ -164,8 +164,7 @@ class UtterAccessibilityService : AccessibilityService() {
     }
 
     private fun setBubbleTint(button: ImageButton, listening: Boolean) {
-        button.setImageResource(R.drawable.ic_mic_bubble)
-        button.background = if (listening) ContextCompat.getDrawable(this, R.drawable.listening_ring) else null
+        button.setImageResource(if (listening) R.drawable.ic_mic_bubble_listening else R.drawable.ic_mic_bubble)
     }
 
     private fun toggleListening(button: ImageButton) {
