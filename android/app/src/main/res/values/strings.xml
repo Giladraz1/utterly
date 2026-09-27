@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="accessibility_service_description">Adds a floating mic button so you can dictate text into any app\'s text field.</string>
+</resources>
