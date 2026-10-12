@@ -26,12 +26,41 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
+// Empty tag = follow the device language.
+const _languages = <(String tag, String label)>[
+  ('', 'Device language (auto)'),
+  ('en-US', 'English (US)'),
+  ('en-GB', 'English (UK)'),
+  ('he-IL', 'עברית (Hebrew)'),
+  ('fr-FR', 'Français (French)'),
+  ('ro-RO', 'Română (Romanian)'),
+  ('es-ES', 'Español (Spanish)'),
+  ('pt-BR', 'Português (Brazil)'),
+  ('de-DE', 'Deutsch (German)'),
+  ('it-IT', 'Italiano (Italian)'),
+  ('ru-RU', 'Русский (Russian)'),
+  ('uk-UA', 'Українська (Ukrainian)'),
+  ('ar-SA', 'العربية (Arabic)'),
+  ('tr-TR', 'Türkçe (Turkish)'),
+  ('pl-PL', 'Polski (Polish)'),
+  ('nl-NL', 'Nederlands (Dutch)'),
+  ('el-GR', 'Ελληνικά (Greek)'),
+  ('hi-IN', 'हिन्दी (Hindi)'),
+  ('ja-JP', '日本語 (Japanese)'),
+  ('ko-KR', '한국어 (Korean)'),
+  ('zh-CN', '中文 (Chinese, Mandarin)'),
+];
+
 class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   static const _channel = MethodChannel('com.utter/accessibility');
 
   bool _accessibilityEnabled = false;
   PermissionStatus _micStatus = PermissionStatus.denied;
   bool _bubbleVisible = true;
+  String _languageTag = '';
+
+  String get _languageLabel =>
+      _languages.firstWhere((l) => l.$1 == _languageTag, orElse: () => (_languageTag, _languageTag)).$2;
 
   @override
   void initState() {
@@ -55,12 +84,42 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     final enabled = await _channel.invokeMethod<bool>('isAccessibilityServiceEnabled') ?? false;
     final micStatus = await Permission.microphone.status;
     final bubbleVisible = await _channel.invokeMethod<bool>('isBubbleVisible') ?? true;
+    final languageTag = await _channel.invokeMethod<String>('getSpeechLanguage') ?? '';
     if (!mounted) return;
     setState(() {
       _accessibilityEnabled = enabled;
       _micStatus = micStatus;
       _bubbleVisible = bubbleVisible;
+      _languageTag = languageTag;
     });
+  }
+
+  Future<void> _pickLanguage() async {
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('Speech language', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ),
+            for (final (tag, label) in _languages)
+              ListTile(
+                title: Text(label),
+                trailing: tag == _languageTag ? const Icon(Icons.check) : null,
+                onTap: () => Navigator.pop(context, tag),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (picked == null) return;
+    await _channel.invokeMethod('setSpeechLanguage', {'tag': picked});
+    if (!mounted) return;
+    setState(() => _languageTag = picked);
   }
 
   Future<void> _openAccessibilitySettings() async {
@@ -74,6 +133,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   Future<void> _requestMicPermission() async {
+    if (_micStatus.isGranted) {
+      await openAppSettings();
+      return;
+    }
     final status = await Permission.microphone.request();
     if (!mounted) return;
     setState(() => _micStatus = status);
@@ -133,6 +196,16 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               granted: micGranted,
               buttonLabel: 'Grant permission',
               onPressed: _requestMicPermission,
+            ),
+            const SizedBox(height: 12),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.language),
+                title: const Text('Speech language'),
+                subtitle: Text(_languageLabel),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: _pickLanguage,
+              ),
             ),
             if (_accessibilityEnabled) ...[
               const SizedBox(height: 12),
@@ -194,7 +267,7 @@ class _StatusTile extends StatelessWidget {
         ),
         title: Text(title),
         subtitle: Text(subtitle),
-        trailing: granted ? null : TextButton(onPressed: onPressed, child: Text(buttonLabel)),
+        trailing: TextButton(onPressed: onPressed, child: Text(granted ? 'Manage' : buttonLabel)),
       ),
     );
   }

@@ -1,4 +1,4 @@
-package com.utter.utter
+package com.utterly.app
 
 import android.accessibilityservice.AccessibilityService
 import android.content.ClipData
@@ -31,6 +31,7 @@ class UtterAccessibilityService : AccessibilityService() {
     companion object {
         private const val PREFS_NAME = "utter_prefs"
         private const val KEY_BUBBLE_VISIBLE = "bubble_visible"
+        private const val KEY_SPEECH_LANGUAGE = "speech_language"
 
         var instance: UtterAccessibilityService? = null
             private set
@@ -198,6 +199,15 @@ class UtterAccessibilityService : AccessibilityService() {
                 override fun onError(error: Int) {
                     isListening = false
                     setBubbleTint(button, false)
+                    if (error == SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED ||
+                        error == SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE
+                    ) {
+                        Toast.makeText(
+                            this@UtterAccessibilityService,
+                            "This language isn't available on your device's speech engine",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
                 }
 
                 override fun onResults(results: Bundle?) {
@@ -214,8 +224,13 @@ class UtterAccessibilityService : AccessibilityService() {
             })
         }
 
+        // Empty pref = "device language". Setting it explicitly matters: without EXTRA_LANGUAGE the
+        // recognizer falls back to its own default (this phone reports en-GB as its product locale).
+        val chosenTag = prefs().getString(KEY_SPEECH_LANGUAGE, "").orEmpty()
+        val languageTag = chosenTag.ifEmpty { java.util.Locale.getDefault().toLanguageTag() }
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, languageTag)
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
         }
         speechRecognizer?.startListening(intent)

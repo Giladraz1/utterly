@@ -1,4 +1,4 @@
-package com.utter.utter
+package com.utterly.app
 
 import android.content.Intent
 import android.provider.Settings
@@ -11,6 +11,7 @@ class MainActivity : FlutterActivity() {
     private val channelName = "com.utter/accessibility"
     private val prefsName = "utter_prefs"
     private val keyBubbleVisible = "bubble_visible"
+    private val keySpeechLanguage = "speech_language"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -36,6 +37,18 @@ class MainActivity : FlutterActivity() {
                             .putBoolean(keyBubbleVisible, visible)
                             .apply()
                     }
+                    result.success(null)
+                }
+                "getSpeechLanguage" -> {
+                    result.success(
+                        getSharedPreferences(prefsName, MODE_PRIVATE).getString(keySpeechLanguage, "") ?: ""
+                    )
+                }
+                "setSpeechLanguage" -> {
+                    val tag = call.argument<String>("tag") ?: ""
+                    getSharedPreferences(prefsName, MODE_PRIVATE).edit()
+                        .putString(keySpeechLanguage, tag)
+                        .apply()
                     result.success(null)
                 }
                 else -> result.notImplemented()

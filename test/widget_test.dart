@@ -7,8 +7,9 @@ void main() {
     await tester.pumpWidget(const UtterApp());
     await tester.pump();
 
-    expect(find.text('Utter'), findsOneWidget);
+    expect(find.text('Utterly'), findsOneWidget);
     expect(find.text('Accessibility service'), findsOneWidget);
     expect(find.text('Microphone permission'), findsOneWidget);
+    expect(find.text('Speech language'), findsOneWidget);
   });
 }
