@@ -26,7 +26,7 @@ Do NOT mark the service as an "accessibility tool". Utterly is a general dictati
 ## 3. App access (reviewers)
 Instructions for the reviewer:
 1. Open Utterly and tap "Grant permission" for the microphone.
-2. Tap "Open settings" next to Accessibility service, choose Installed apps > Utterly Voice Typing, turn it on and confirm.
+2. Tap "Open settings" next to Accessibility service, read the disclosure and tap "Agree and continue", then choose Installed apps > Utterly Voice Typing, turn it on and confirm.
 3. Open any app with a text field (for example Messages or Notes), tap the field, tap the floating mic button and speak. The text appears at the cursor.
 No login or account is needed.
 
@@ -38,5 +38,5 @@ No login or account is needed.
 
 ## 5. Open risks (my honest view)
 - Google may question why the app needs the Accessibility API at all, because a keyboard (IME) could do dictation without it. The declaration above explains the overlay and the field insertion, but I do not know if the reviewer will accept it.
-- Google's policy may require a clear in-app disclosure and consent screen BEFORE the user is sent to Accessibility settings. Utterly currently sends the user straight to settings with a short subtitle. I could not confirm the exact requirement, so check the policy text in the Console. Adding a disclosure screen is a code change and needs a new build and version code.
+- Google's policy may require a clear in-app disclosure and consent BEFORE the user is sent to Accessibility settings. Utterly now shows a disclosure dialog (what the service does, what it does not do, Agree / Not now) before opening the settings. I could not confirm the exact policy wording, so compare the dialog text with the policy in the Console.
 - A short demo video is likely required for the declaration (see video-script.md).

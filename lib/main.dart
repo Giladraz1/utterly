@@ -123,6 +123,31 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   Future<void> _openAccessibilitySettings() async {
+    // Show the disclosure only when turning the service on; "Manage" goes straight to settings.
+    if (!_accessibilityEnabled) {
+      final agreed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Allow Utterly to use the Accessibility Service?'),
+          content: const SingleChildScrollView(
+            child: Text(
+              'Utterly uses Android\'s Accessibility Service for two things only:\n\n'
+              '• to show the mic button on top of other apps\n'
+              '• to insert the text you dictate into the field you are using\n\n'
+              'It does not read, store or share what is on your screen or what you type. '
+              'Utterly has no internet access of its own.\n\n'
+              'On the next screen, choose Installed apps > Utterly Voice Typing and turn it on. '
+              'You can turn it off at any time in Settings > Accessibility.',
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Not now')),
+            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Agree and continue')),
+          ],
+        ),
+      );
+      if (agreed != true) return;
+    }
     await _channel.invokeMethod('openAccessibilitySettings');
   }
 
