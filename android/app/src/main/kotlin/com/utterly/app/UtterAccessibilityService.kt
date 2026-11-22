@@ -11,7 +11,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
@@ -183,13 +182,20 @@ class UtterAccessibilityService : AccessibilityService() {
             Toast.makeText(this, "Speech recognition isn't available on this device", Toast.LENGTH_LONG).show()
             return
         }
+        retriedAfterDisconnect = false
         startListening(button)
     }
 
-    private fun startListening(button: ImageButton) {
-        speechRecognizer?.destroy()
-        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this).apply {
-            setRecognitionListener(object : RecognitionListener {
+    private var retriedAfterDisconnect = false
+
+    // Reused across taps. Destroying and re-creating it on every tap made Google's recognition
+    // service answer the first tap after a finished session with ERROR_SERVER_DISCONNECTED,
+    // which reset the bubble and looked like "the first tap does nothing".
+    private fun ensureRecognizer(): SpeechRecognizer {
+        speechRecognizer?.let { return it }
+        return SpeechRecognizer.createSpeechRecognizer(this).also { recognizer ->
+            speechRecognizer = recognizer
+            recognizer.setRecognitionListener(object : RecognitionListener {
                 override fun onReadyForSpeech(params: Bundle?) {}
                 override fun onBeginningOfSpeech() {}
                 override fun onRmsChanged(rmsdB: Float) {}
@@ -197,8 +203,15 @@ class UtterAccessibilityService : AccessibilityService() {
                 override fun onEndOfSpeech() {}
 
                 override fun onError(error: Int) {
+                    if (error == SpeechRecognizer.ERROR_SERVER_DISCONNECTED && !retriedAfterDisconnect) {
+                        retriedAfterDisconnect = true
+                        speechRecognizer?.destroy()
+                        speechRecognizer = null
+                        bubbleView?.let { startListening(it) }
+                        return
+                    }
                     isListening = false
-                    setBubbleTint(button, false)
+                    bubbleView?.let { setBubbleTint(it, false) }
                     if (error == SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED ||
                         error == SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE
                     ) {
@@ -212,10 +225,9 @@ class UtterAccessibilityService : AccessibilityService() {
 
                 override fun onResults(results: Bundle?) {
                     isListening = false
-                    setBubbleTint(button, false)
+                    bubbleView?.let { setBubbleTint(it, false) }
                     val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                     val text = matches?.firstOrNull()
-                    Log.d("UtterDebug", "onResults spoken='$text'")
                     if (!text.isNullOrEmpty()) insertTextIntoFocusedField(text)
                 }
 
@@ -223,6 +235,10 @@ class UtterAccessibilityService : AccessibilityService() {
                 override fun onEvent(eventType: Int, params: Bundle?) {}
             })
         }
+    }
+
+    private fun startListening(button: ImageButton) {
+        val recognizer = ensureRecognizer()
 
         // Empty pref = "device language". Setting it explicitly matters: without EXTRA_LANGUAGE the
         // recognizer falls back to its own default (this phone reports en-GB as its product locale).
@@ -233,7 +249,7 @@ class UtterAccessibilityService : AccessibilityService() {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, languageTag)
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
         }
-        speechRecognizer?.startListening(intent)
+        recognizer.startListening(intent)
         isListening = true
         setBubbleTint(button, true)
     }
