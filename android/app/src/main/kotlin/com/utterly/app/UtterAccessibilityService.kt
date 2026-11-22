@@ -1,12 +1,15 @@
 package com.utterly.app
 
 import android.accessibilityservice.AccessibilityService
+import android.animation.ObjectAnimator
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.graphics.PixelFormat
+import android.graphics.PorterDuff
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -17,6 +20,7 @@ import android.speech.SpeechRecognizer
 import android.view.GestureDetector
 import android.view.Gravity
 import android.view.MotionEvent
+import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
@@ -167,6 +171,20 @@ class UtterAccessibilityService : AccessibilityService() {
         button.setImageResource(if (listening) R.drawable.ic_mic_bubble_listening else R.drawable.ic_mic_bubble)
     }
 
+    // Android suppresses toasts from apps whose notifications are off (Utterly never asks for
+    // that permission), so toasts alone are invisible. The bubble itself flashes red and wobbles
+    // whenever a dictation ends without inserting any text.
+    private fun signalFailure() {
+        val button = bubbleView ?: return
+        button.setColorFilter(Color.RED, PorterDuff.Mode.SRC_ATOP)
+        // Rotation, not translation: the overlay window is exactly the bubble's size and clips
+        // anything that moves outside it.
+        ObjectAnimator.ofFloat(button, View.ROTATION, 0f, -18f, 18f, -14f, 14f, -8f, 8f, 0f)
+            .setDuration(400)
+            .start()
+        Handler(Looper.getMainLooper()).postDelayed({ button.clearColorFilter() }, 700)
+    }
+
     private fun toggleListening(button: ImageButton) {
         if (isListening) {
             stopListening()
@@ -176,10 +194,12 @@ class UtterAccessibilityService : AccessibilityService() {
             != PackageManager.PERMISSION_GRANTED
         ) {
             Toast.makeText(this, "Grant microphone permission in the Utterly app first", Toast.LENGTH_LONG).show()
+            signalFailure()
             return
         }
         if (!SpeechRecognizer.isRecognitionAvailable(this)) {
             Toast.makeText(this, "Speech recognition isn't available on this device", Toast.LENGTH_LONG).show()
+            signalFailure()
             return
         }
         retriedAfterDisconnect = false
@@ -212,6 +232,7 @@ class UtterAccessibilityService : AccessibilityService() {
                     }
                     isListening = false
                     bubbleView?.let { setBubbleTint(it, false) }
+                    signalFailure()
                     if (error == SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED ||
                         error == SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE
                     ) {
@@ -228,7 +249,7 @@ class UtterAccessibilityService : AccessibilityService() {
                     bubbleView?.let { setBubbleTint(it, false) }
                     val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                     val text = matches?.firstOrNull()
-                    if (!text.isNullOrEmpty()) insertTextIntoFocusedField(text)
+                    if (text.isNullOrEmpty()) signalFailure() else insertTextIntoFocusedField(text)
                 }
 
                 override fun onPartialResults(partialResults: Bundle?) {}
@@ -280,12 +301,38 @@ class UtterAccessibilityService : AccessibilityService() {
     private fun findEditableFocusedNode(root: AccessibilityNodeInfo?): AccessibilityNodeInfo? =
         findNodeBfs(root) { it.isFocused && it.isEditable }
 
+    // When nothing is focused (typically right after opening a new chat), the only visible
+    // editable field in the window is almost certainly the one the user means. With two or more
+    // (say a search bar plus a composer) we don't guess.
+    private fun findSoleEditableNode(root: AccessibilityNodeInfo?): AccessibilityNodeInfo? {
+        if (root == null) return null
+        val editable = mutableListOf<AccessibilityNodeInfo>()
+        val queue = ArrayDeque<AccessibilityNodeInfo>()
+        queue.add(root)
+        while (queue.isNotEmpty()) {
+            val current = queue.removeFirst()
+            if (current.isEditable && current.isVisibleToUser) editable.add(current)
+            for (i in 0 until current.childCount) {
+                current.getChild(i)?.let { queue.add(it) }
+            }
+        }
+        return editable.singleOrNull()
+    }
+
+    private fun focusNode(node: AccessibilityNodeInfo) {
+        if (!node.performAction(AccessibilityNodeInfo.ACTION_FOCUS)) {
+            node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+        }
+    }
+
     private fun insertTextIntoFocusedField(spoken: String) {
         val root = rootInActiveWindow
         val node: AccessibilityNodeInfo = root?.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
             ?: findEditableFocusedNode(root)
+            ?: findSoleEditableNode(root)?.also { focusNode(it) }
             ?: run {
                 Toast.makeText(this, "Tap a text field first, then use the mic", Toast.LENGTH_SHORT).show()
+                signalFailure()
                 return
             }
 
@@ -296,6 +343,7 @@ class UtterAccessibilityService : AccessibilityService() {
         val inserted = pasteViaClipboard(node, spoken) || setNodeText(node, spoken)
         if (!inserted) {
             Toast.makeText(this, "Couldn't type into this field", Toast.LENGTH_SHORT).show()
+            signalFailure()
         }
     }
 

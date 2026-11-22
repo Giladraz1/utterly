@@ -182,7 +182,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               title: 'Accessibility service',
               subtitle: _accessibilityEnabled
                   ? 'Enabled — the mic bubble can appear over other apps.'
-                  : 'Needed so Utter can show a mic bubble and type into other apps.',
+                  : 'Needed so Utterly can show a mic bubble and type into other apps.',
               granted: _accessibilityEnabled,
               buttonLabel: 'Open settings',
               onPressed: _openAccessibilitySettings,
@@ -192,7 +192,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               title: 'Microphone permission',
               subtitle: micGranted
                   ? 'Granted — speech recognition can access the mic.'
-                  : 'Needed so Utter can hear what you say.',
+                  : 'Needed so Utterly can hear what you say.',
               granted: micGranted,
               buttonLabel: 'Grant permission',
               onPressed: _requestMicPermission,

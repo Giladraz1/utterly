@@ -49,3 +49,6 @@ app.*.map.json
 
 # Claude Code local session state
 .claude/
+
+# Demo videos show the developer's personal accounts; keep them local
+store/*.mp4
